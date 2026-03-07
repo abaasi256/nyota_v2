@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+nats-py
+pydantic
+psycopg2-binary
+playwright
+beautifulsoup4
+httpx
+openai

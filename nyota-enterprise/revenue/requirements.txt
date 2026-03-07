@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+nats-py
+pydantic
+psycopg2-binary
+httpx
+openai

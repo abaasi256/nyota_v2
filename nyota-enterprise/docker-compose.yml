@@ -1,0 +1,177 @@
+version: "3.8"
+
+services:
+  # --------------------------------------------------------
+  # THE NERVOUS SYSTEM: NATS Event Bus (with JetStream)
+  # --------------------------------------------------------
+  nats:
+    image: nats:2.9.15-alpine
+    container_name: nyota_bus
+    command:
+      - "-js" # Enable JetStream for persistence
+      - "-m"
+      - "8222" # Monitor port
+    ports:
+      - "4222:4222" # Client connections
+      - "8222:8222" # Metrics
+    volumes:
+      - nats_data:/data
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------
+  # THE MEMORY: Shared Multi-Tenant Database
+  # --------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: nyota_db
+    environment:
+      POSTGRES_USER: ${NYOTA_DB_ADMIN:-nyota_admin}
+      POSTGRES_PASSWORD: ${NYOTA_DB_PASSWORD:-secure_dev_password}
+      POSTGRES_DB: nyota_foundation
+    ports:
+      - "5432:5432" # Exposed for local dev, block in prod
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./core/config/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # THE CACHE: High-Speed Working State
+  # --------------------------------------------------------
+  redis:
+    image: redis:7.0-alpine
+    container_name: nyota_cache
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # NYOTA CORE (FastAPI Gateway)
+  # --------------------------------------------------------
+  core_api:
+    build: ./core
+    container_name: nyota_core_gateway
+    env_file: .env.core
+    ports:
+      - "8000:8000"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # SECURITY OS (Audit & Validation)
+  # --------------------------------------------------------
+  security_os:
+    build: ./security
+    container_name: nyota_security_validator
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # REVENUE OS (CRM & WhatsApp Integrations)
+  # --------------------------------------------------------
+  revenue_api:
+    build: ./revenue
+    container_name: nyota_revenue_api
+    env_file: .env.core
+    ports:
+      - "8001:8000"
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # REVENUE OS (Sales AI Agent - Nia)
+  # --------------------------------------------------------
+  revenue_agent_nia:
+    build: ./revenue
+    container_name: nyota_revenue_nia
+    command: ["python", "-u", "-m", "src.nia_agent"]
+    env_file: .env.core
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # GROWTH OS (Headless Playwright Crawler - Zuri)
+  # --------------------------------------------------------
+  growth_crawler_zuri:
+    build: 
+      context: ./growth
+      dockerfile: Dockerfile.crawler
+    container_name: nyota_growth_zuri
+    env_file: .env.core
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    shm_size: '1g' # Required for headless Chrome/Playwright memory thresholds
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+  # --------------------------------------------------------
+  # GROWTH OS (LLM Content Writer - Amani)
+  # --------------------------------------------------------
+  growth_drafter_amani:
+    build: 
+      context: ./growth
+      dockerfile: Dockerfile.crawler
+    container_name: nyota_growth_amani
+    command: ["python", "-u", "-m", "src.amani_agent"]
+    env_file: .env.core
+    depends_on:
+      nats:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
+volumes:
+  nats_data:
+  pg_data:
+  redis_data:
+
+networks:
+  nyota_core_net:
+    driver: bridge # Transition to overlay for Swarm
