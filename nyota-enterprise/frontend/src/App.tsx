@@ -64,10 +64,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             System <span>/ {getBreadcrumb(location.pathname)}</span>
           </div>
           <div className="topbar-actions">
-            <button className="action-btn">
+            <button className="action-btn" onClick={() => alert("Settings Panel: Configuration is locked remotely by Autonomus node.")}>
               <Settings size={18} />
             </button>
-            <button className="action-btn">
+            <button className="action-btn" onClick={() => alert("Notifications: 4 Alerts. All systems green.")}>
               <Bell size={18} />
             </button>
           </div>

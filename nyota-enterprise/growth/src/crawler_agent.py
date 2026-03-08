@@ -4,9 +4,13 @@ import json
 import psycopg2
 from bs4 import BeautifulSoup
 from nats.aio.client import Client as NATS
+from qdrant_client import QdrantClient
 
 DB_DSN = os.getenv("DATABASE_URL", "postgresql://os_growth:os_growth_pass@nyota_db:5432/nyota_foundation")
 NATS_URL = os.getenv("NATS_URL", "nats://nyota_bus:4222")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://nyota_qdrant:6333")
+
+qdrant = QdrantClient(url=QDRANT_URL)
 
 def record_keyword_metrics(keyword, volume=0, difficulty=0):
     try:
@@ -91,6 +95,19 @@ async def run():
                 if scraped_context:
                     record_keyword_metrics(keyword, volume, difficulty)
                     print(f"[Zuri] Successfully logged SEO metrics for '{keyword}' into Postgres.")
+                    
+                    # Store in Qdrant Vector Brain seamlessly using fastembed
+                    try:
+                        print(f"[Zuri] Pushing context into Qdrant Vector Brain...")
+                        await asyncio.to_thread(
+                            qdrant.add,
+                            collection_name="growth_crawls",
+                            documents=[scraped_context],
+                            metadata=[{"keyword": keyword}]
+                        )
+                        print(f"[Zuri] Vector embeddings saved in Qdrant.")
+                    except Exception as qe:
+                        print(f"[Zuri] Failed pushing to Qdrant: {qe}")
                     
                     # Fire Async Event signalling the Drafter (Amani) to generate an article
                     result_event = {

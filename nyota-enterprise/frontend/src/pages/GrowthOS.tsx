@@ -26,6 +26,35 @@ export default function GrowthOS() {
     }
   };
 
+  const handleTriggerCrawl = async () => {
+    const keyword = prompt("Enter target keyword for AI SERP Crawl & Generation:");
+    if (!keyword) return;
+    try {
+      const res = await fetch('http://localhost:8000/bus/publish/orchestrator/start_workflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          action: "start",
+          target: "system",
+          data: {
+            target_keyword: keyword
+          }
+        })
+      });
+      if (res.ok) {
+        alert(`Successfully dispatched crawler sequence for: ${keyword}`);
+        fetchBriefs(); // Poll again immediately
+      } else {
+        alert("Failed to reach Core Gateway");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error orchestrating swarm.");
+    }
+  };
+
   useEffect(() => {
     fetchBriefs();
     const interval = setInterval(fetchBriefs, 10000); // Live poll every 10s
@@ -70,7 +99,7 @@ export default function GrowthOS() {
             <button className="action-btn" onClick={fetchBriefs} style={{borderRadius: 8, height: 36, width: 36}}>
               <RefreshCw size={16} className={loading ? "spin" : ""} />
             </button>
-            <button className="action-btn" style={{width: 'auto', padding: '0 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none'}}>
+            <button onClick={handleTriggerCrawl} className="action-btn" style={{width: 'auto', padding: '0 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none', cursor: 'pointer'}}>
               <PlusCircle size={16} style={{marginRight: 8}}/> Trigger Manual Crawl
             </button>
           </div>

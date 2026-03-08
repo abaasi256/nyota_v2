@@ -4,9 +4,13 @@ import json
 import psycopg2
 from nats.aio.client import Client as NATS
 from src.llm_router import router
+from qdrant_client import QdrantClient
 
 DB_DSN = os.getenv("DATABASE_URL", "postgresql://os_growth:os_growth_pass@nyota_db:5432/nyota_foundation")
 NATS_URL = os.getenv("NATS_URL", "nats://nyota_bus:4222")
+QDRANT_URL = os.getenv("QDRANT_URL", "http://nyota_qdrant:6333")
+
+qdrant = QdrantClient(url=QDRANT_URL)
 
 SYSTEM_PROMPT = """You are Amani, the elite AI Content Writer for Nyota's Growth OS.
 Your objective is to consume a target keyword and a scraped SEO context snippet, and draft a high-converting, SEO-optimized blog article.
@@ -70,8 +74,22 @@ async def run():
             if keyword:
                 print(f"[Amani] Drafting SEO Post for '{keyword}'...")
                 
+                # RAG Query Qdrant for memory
+                try:
+                    rag_docs = await asyncio.to_thread(
+                        qdrant.query,
+                        collection_name="growth_crawls",
+                        query_text=keyword,
+                        limit=3
+                    )
+                    rag_context = "\n".join([doc.document for doc in rag_docs])
+                    print(f"[Amani] Retrieved {len(rag_docs)} chunks from Qdrant Vector Memory.")
+                except Exception as qe:
+                    print(f"[Amani] RAG Retrieval Failed (using empty context): {qe}")
+                    rag_context = ""
+                
                 # We enforce Cloud for heavy drafting if context is massive, but Router handles it
-                user_prompt = f"Target Keyword: {keyword}\n\nCompetitor Context from SERP:\n{context}\n\nPlease generate the full Markdown article now."
+                user_prompt = f"Target Keyword: {keyword}\n\nHistorical Database Memory (RAG):\n{rag_context}\n\nRecent Competitor Context from SERP:\n{context}\n\nPlease generate the full Markdown article now."
                 
                 # Offload to Intelligent LLM Router
                 article_md = await router.generate_response(SYSTEM_PROMPT, user_prompt)

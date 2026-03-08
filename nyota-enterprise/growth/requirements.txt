@@ -7,3 +7,5 @@ playwright
 beautifulsoup4
 httpx
 openai
+qdrant-client
+fastembed
