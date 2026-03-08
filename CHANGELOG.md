@@ -4,7 +4,18 @@ All notable changes to the Nyota v2 Distributed Architecture will be documented 
 
 ## [Unreleased]
 
-### Phase 3 Started
+### Phase 4 Complete
+
+- **Phase 4: Advanced Systems** implementation complete.
+- Deployed **Temporal Orchestrator** & UI with PostgreSQL persistence backend.
+- Created `orchestrator` container bridging NATS JetStream events to Temporal Workflows (`events.orchestrator.start_workflow.*`).
+- Defined and tested the complete end-to-end `ContentGenerationWorkflow` utilizing the Saga pattern:
+  1. Triggered via API Gateway Event.
+  2. Orchestrator registers Temporal Workflow and issues Crawler trigger.
+  3. Zuri Web Scraper executes search.
+  4. Amani Drafter intercepts Zuri completion independently and generates post.
+  5. Orchestrator intercepts Amani Draft Event and signals Temporal to proceed to Quality Check/Human Approval gate.
+- Setup GitHub Repo synchronization (`https://github.com/abaasi256/nyota_v2.git`).
 
 - **Phase 3: Growth OS** implementation commenced.
 - **Data Layer:** Initialized isolated `growth` schema in PostgreSQL with `growth.keywords` and `growth.content_briefs` tables.

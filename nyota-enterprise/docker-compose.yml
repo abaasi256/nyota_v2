@@ -167,6 +167,51 @@ services:
       - nyota_core_net
     restart: unless-stopped
 
+  # --------------------------------------------------------
+  # ADVANCED SYSTEMS: TEMPORAL ORCHESTRATOR
+  # --------------------------------------------------------
+  temporal:
+    container_name: nyota_temporal
+    image: temporalio/auto-setup:1.22.4
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=${NYOTA_DB_ADMIN:-nyota_admin}
+      - POSTGRES_PWD=${NYOTA_DB_PASSWORD:-secure_dev_password}
+      - POSTGRES_SEEDS=nyota_db
+    depends_on:
+      postgres:
+        condition: service_started
+    networks:
+      - nyota_core_net
+
+  temporal-ui:
+    container_name: nyota_temporal_ui
+    image: temporalio/ui:2.21.3
+    ports:
+      - "8080:8080"
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+    depends_on:
+      - temporal
+    networks:
+      - nyota_core_net
+
+  nyota_orchestrator:
+    build: ./orchestrator
+    container_name: nyota_orchestrator
+    environment:
+      - TEMPORAL_HOST=temporal:7233
+      - NATS_URL=nats://nyota_bus:4222
+    depends_on:
+      - temporal
+      - nats
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
 volumes:
   nats_data:
   pg_data:
