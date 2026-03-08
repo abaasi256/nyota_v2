@@ -4,6 +4,11 @@ All notable changes to the Nyota v2 Distributed Architecture will be documented 
 
 ## [Unreleased]
 
+### Phase 5 Started
+
+- **Phase 5: Frontends (Mission Control)** implementation commenced.
+- Initializing the primary web dashboard to interface with the Nyota OS backend swarm.
+
 ### Phase 4 Complete
 
 - **Phase 4: Advanced Systems** implementation complete.

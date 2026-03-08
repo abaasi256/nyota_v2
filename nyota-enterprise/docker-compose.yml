@@ -212,6 +212,18 @@ services:
       - nyota_core_net
     restart: unless-stopped
 
+  # --------------------------------------------------------
+  # MISSION CONTROL (Frontend UI)
+  # --------------------------------------------------------
+  nyota_dashboard:
+    build: ./frontend
+    container_name: nyota_dashboard
+    ports:
+      - "3000:80"
+    networks:
+      - nyota_core_net
+    restart: unless-stopped
+
 volumes:
   nats_data:
   pg_data:
