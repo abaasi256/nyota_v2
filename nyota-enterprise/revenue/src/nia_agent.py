@@ -1,7 +1,7 @@
 import asyncio
 import os
 import json
-import psycopg2
+import asyncpg
 from nats.aio.client import Client as NATS
 from src.llm_router import router
 
@@ -14,7 +14,18 @@ Keep your responses concise, professional, and optimized for a WhatsApp interfac
 Do NOT use markdown headers or complex formatting. Use plain text with occasional emojis.
 Always ask a leading question to keep the lead engaged."""
 
+db_pool = None
+
 async def run():
+    global db_pool
+    # Initialize DB Pool
+    try:
+        db_pool = await asyncpg.create_pool(DB_DSN)
+        print("Nia connected to Revenue DB (asyncpg).")
+    except Exception as e:
+        print(f"Nia failed to connect to DB: {e}")
+        return
+
     nc = NATS()
     print("Nia (Revenue AI Agent) connecting to NATS...")
     while True:

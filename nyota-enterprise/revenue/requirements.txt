@@ -3,5 +3,6 @@ uvicorn
 nats-py
 pydantic
 psycopg2-binary
+asyncpg
 httpx
 openai

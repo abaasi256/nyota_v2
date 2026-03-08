@@ -4,10 +4,18 @@ All notable changes to the Nyota v2 Distributed Architecture will be documented 
 
 ## [Unreleased]
 
-### Phase 5 Started
+### Phase 6 Started
 
-- **Phase 5: Frontends (Mission Control)** implementation commenced.
-- Initializing the primary web dashboard to interface with the Nyota OS backend swarm.
+- **Phase 6: Active Security & System Enhancements** implementation commenced.
+- Upgrading Database Drivers to `asyncpg` across all AI Agents (Nia, Baraka) to ensure zero-blocking asynchronous Event Loops under high NATS load.
+
+### Phase 5 Complete
+
+- **Phase 5: Frontends (Mission Control)** implementation complete.
+- Built a premium **React + Vite** frontend applying glassmorphism logic and dynamic SVG graphics.
+- Bound live, genuine **WebSockets** inside `core_api` to stream raw NATS JetStream events to the React UI in real-time.
+- Provisioned specialized `Dashboard`, `Growth OS`, `Revenue OS`, and `Infrastructure OS` displays.
+- Connected UI to the asynchronous execution PostgreSQL database using `asyncpg` for dynamic status pooling (Leads and Content Briefs).
 
 ### Phase 4 Complete
 
