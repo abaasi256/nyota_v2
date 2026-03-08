@@ -1,7 +1,37 @@
+import { useState, useEffect } from 'react';
+import { Search, PenTool, Link, PlusCircle, RefreshCw } from 'lucide-react';
 
-import { Search, PenTool, Link, PlusCircle } from 'lucide-react';
+interface ContentBrief {
+  keyword_id: string;
+  title: string;
+  status: string;
+  content_length: number;
+  created_at: string;
+}
 
 export default function GrowthOS() {
+  const [briefs, setBriefs] = useState<ContentBrief[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBriefs = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/growth/content_briefs');
+      const data = await response.json();
+      setBriefs(data);
+    } catch (err) {
+      console.error('Failed to fetch growth briefs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBriefs();
+    const interval = setInterval(fetchBriefs, 10000); // Live poll every 10s
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div>
       <div className="metric-grid">
@@ -10,8 +40,8 @@ export default function GrowthOS() {
             <span className="metric-title">Zuri Crawler Status</span>
             <Search size={16} />
           </div>
-          <div className="metric-value">Idle <span style={{fontSize: 14, color: 'var(--success)'}}>Ready</span></div>
-          <div className="metric-trend">0 Active Jobs</div>
+          <div className="metric-value">Active <span style={{fontSize: 14, color: 'var(--success)'}}>Listening</span></div>
+          <div className="metric-trend">NATS Trigger Driven</div>
         </div>
         
         <div className="metric-card glass-panel">
@@ -19,13 +49,13 @@ export default function GrowthOS() {
             <span className="metric-title">Amani Drafter Stats</span>
             <PenTool size={16} />
           </div>
-          <div className="metric-value">12 <span style={{fontSize: 14, color: 'var(--text-muted)'}}>Drafts / wk</span></div>
-          <div className="metric-trend trend-up">Last draft size: 928 wds</div>
+          <div className="metric-value">{briefs.length} <span style={{fontSize: 14, color: 'var(--text-muted)'}}>Generated DB Briefs</span></div>
+          <div className="metric-trend trend-up">Avg size: {briefs.length > 0 ? Math.round(briefs.reduce((acc, curr) => acc + curr.content_length, 0) / briefs.length) : 0} bytes</div>
         </div>
 
         <div className="metric-card glass-panel">
           <div className="metric-header">
-            <span className="metric-title">Avg Link Strength</span>
+            <span className="metric-title">Avg Domain Strength</span>
             <Link size={16} />
           </div>
           <div className="metric-value">DR 48</div>
@@ -35,43 +65,58 @@ export default function GrowthOS() {
 
       <div className="panel glass-panel" style={{marginBottom: 24}}>
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-          <h2 className="panel-title" style={{margin: 0}}>Latest Content Generation Workflows</h2>
-          <button className="action-btn" style={{width: 'auto', padding: '0 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none'}}>
-            <PlusCircle size={16} style={{marginRight: 8}}/> Trigger Manual Crawl
-          </button>
+          <h2 className="panel-title" style={{margin: 0}}>Latest AI Content Generation (Live DB)</h2>
+          <div style={{display: 'flex', gap: 12}}>
+            <button className="action-btn" onClick={fetchBriefs} style={{borderRadius: 8, height: 36, width: 36}}>
+              <RefreshCw size={16} className={loading ? "spin" : ""} />
+            </button>
+            <button className="action-btn" style={{width: 'auto', padding: '0 16px', borderRadius: '8px', background: 'var(--accent-primary)', color: '#fff', border: 'none'}}>
+              <PlusCircle size={16} style={{marginRight: 8}}/> Trigger Manual Crawl
+            </button>
+          </div>
         </div>
         
         <table className="data-table">
           <thead>
             <tr>
-              <th>Temporal ID</th>
-              <th>Target Keyword</th>
-              <th>Crawl Size</th>
+              <th>ID</th>
+              <th>Generated Title</th>
+              <th>Document Size</th>
+              <th>Date</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td className="text-mono">content-gen-ai-automated-saas</td>
-              <td>ai automated saas deployment</td>
-              <td>82.8 KB</td>
-              <td><span className="status-badge status-pending">Human Approval Gate</span></td>
-            </tr>
-            <tr>
-              <td className="text-mono">content-gen-enterprise-grade</td>
-              <td>enterprise grade networking</td>
-              <td>56.3 KB</td>
-              <td><span className="status-badge status-active">Completed</span></td>
-            </tr>
-            <tr>
-              <td className="text-mono">content-gen-rtx-4090</td>
-              <td>buy rtx 4090 in kampala</td>
-              <td>56.3 KB</td>
-              <td><span className="status-badge status-active">Completed</span></td>
-            </tr>
+            {briefs.map((brief, idx) => (
+              <tr key={idx}>
+                <td className="text-mono" style={{fontSize: 11}}>{brief.keyword_id.substring(0, 13)}...</td>
+                <td>{brief.title}</td>
+                <td>{(brief.content_length / 1024).toFixed(2)} KB</td>
+                <td style={{color: 'var(--text-muted)'}}>{new Date(brief.created_at).toLocaleString()}</td>
+                <td>
+                  <span className={`status-badge ${brief.status === 'DRAFTED' ? 'status-active' : 'status-pending'}`}>
+                    {brief.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {briefs.length === 0 && !loading && (
+              <tr>
+                <td colSpan={5} style={{textAlign: 'center', padding: '32px', color: 'var(--text-muted)'}}>No content briefs generated yet. Trigger a workflow.</td>
+              </tr>
+            )}
+            {loading && briefs.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{textAlign: 'center', padding: '32px', color: 'var(--text-muted)'}}>Connecting to Core DB...</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+      <style>{`
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; }
+      `}</style>
     </div>
   );
 }
