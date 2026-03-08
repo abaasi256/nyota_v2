@@ -3,3 +3,4 @@ uvicorn
 nats-py
 pydantic
 python-dotenv
+websockets

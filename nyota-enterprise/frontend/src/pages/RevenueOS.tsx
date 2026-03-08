@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { MessageCircle, DollarSign, Package } from 'lucide-react';
 
 export default function RevenueOS() {

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Search, PenTool, Link, PlusCircle } from 'lucide-react';
 
 export default function GrowthOS() {

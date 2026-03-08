@@ -3,12 +3,21 @@ import os
 import json
 from uuid import uuid4
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from nats.aio.client import Client as NATS
 from nats.js.errors import NotFoundError
 
 app = FastAPI(title="Nyota Core Gateway", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 nats_client = NATS()
 js = None
@@ -70,3 +79,41 @@ async def publish_event(domain: str, subdomain: str, payload: EventPayload):
         return {"status": "published", "subject": subject, "seq": ack.seq}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.websocket("/ws/events")
+async def websocket_events(websocket: WebSocket):
+    await websocket.accept()
+    
+    queue = asyncio.Queue()
+    async def nats_handler(msg):
+        await queue.put(msg)
+        
+    sub = await nats_client.subscribe("events.>", cb=nats_handler)
+    
+    async def forward_messages():
+        while True:
+            msg = await queue.get()
+            try:
+                payload = json.loads(msg.data.decode())
+            except Exception:
+                payload = str(msg.data)
+                
+            try:
+                await websocket.send_json({
+                    "subject": msg.subject,
+                    "data": payload
+                })
+            except Exception:
+                break
+                
+    sender_task = asyncio.create_task(forward_messages())
+    
+    try:
+        while True:
+            # Keep connection open and detect disconnects
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        print("WebSocket client disconnected")
+    finally:
+        sender_task.cancel()
+        await sub.unsubscribe()

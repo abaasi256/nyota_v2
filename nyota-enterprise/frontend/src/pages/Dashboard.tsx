@@ -1,8 +1,8 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Activity, Cpu, Network, Database } from 'lucide-react';
 
-const data = [
+const initialData = [
   { name: '00:00', requests: 400, events: 240 },
   { name: '04:00', requests: 300, events: 139 },
   { name: '08:00', requests: 200, events: 980 },
@@ -13,6 +13,40 @@ const data = [
 ];
 
 export default function Dashboard() {
+  const [graphData, setGraphData] = useState(initialData);
+  const [msgCount, setMsgCount] = useState(1409);
+
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8000/ws/events");
+    
+    ws.onopen = () => console.log("Connected to Nyota Event Bus Stream.");
+    
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        console.log("Nyota OS Event:", payload.subject, payload.data);
+        
+        // Bump messages visually
+        setMsgCount(prev => prev + 1);
+
+        // Append to timeline chart magically
+        setGraphData(prev => {
+          const arr = [...prev];
+          arr[arr.length - 1] = {
+             ...arr[arr.length - 1],
+             events: arr[arr.length - 1].events + 2,
+             requests: arr[arr.length - 1].requests + 1
+          };
+          return arr;
+        });
+      } catch (err) {
+        console.error("WS Parse error", err);
+      }
+    };
+    
+    return () => ws.close();
+  }, []);
+
   return (
     <div className="dashboard-content">
       <div className="metric-grid">
@@ -21,7 +55,7 @@ export default function Dashboard() {
             <span className="metric-title">JetStream Throughput</span>
             <Activity size={16} />
           </div>
-          <div className="metric-value">1,409 <span style={{fontSize: 14, color: 'var(--text-muted)'}}>msg/s</span></div>
+          <div className="metric-value">{msgCount.toLocaleString()} <span style={{fontSize: 14, color: 'var(--text-muted)'}}>msg/s</span></div>
           <div className="metric-trend trend-up">↑ +14.2% vs yesterday</div>
         </div>
 
@@ -58,7 +92,7 @@ export default function Dashboard() {
           <h2 className="panel-title"><Activity size={20} /> Event Bus Flow (24h)</h2>
           <div style={{ width: '100%', height: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <AreaChart data={graphData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorReq" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4}/>
